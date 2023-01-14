@@ -124,20 +124,5 @@ if __name__ == '__main__':
 
 	iden = torch.zeros(100)
 	for i in range(100):
-	    iden[i] = i
+		iden[i] = i
 	inversion(G, D, T, E, iden, verbose=True)
-
-
-
-	
-	
-	
-	
-	
-
-	
-	
-		
-
-	
-

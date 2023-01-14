@@ -15,7 +15,7 @@ class Flatten(nn.Module):
 class VGG16(nn.Module):
     def __init__(self, n_classes):
         super(VGG16, self).__init__()
-        model = torchvision.models.vgg16_bn(pretrained=True)
+        8 
         self.feature = model.features
         self.feat_dim = 512 * 2 * 2
         self.n_classes = n_classes

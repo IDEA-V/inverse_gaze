@@ -79,7 +79,9 @@ if __name__ == "__main__":
     for epoch in range(epochs):
         start = time.time()
         for i, imgs in enumerate(dataloader):
+            print(i, end='\r')
             step += 1
+            # imgs = torch.Tensor(imgs)
             imgs = imgs.cuda()
             bs = imgs.size(0)
             
@@ -118,7 +120,7 @@ if __name__ == "__main__":
         end = time.time()
         interval = end - start
         print("Epoch:%d \t Time:%.2f" % (epoch, interval))
-        if (epoch+1) % 10 == 0:
+        if (epoch+1) % 1 == 0:
             z = torch.randn(32, z_dim).cuda()
             fake_image = G(z)
             save_tensor_images(fake_image.detach(), os.path.join(save_img_dir, "result_image_{}.png".format(epoch)), nrow = 8)

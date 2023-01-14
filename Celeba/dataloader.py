@@ -11,6 +11,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.nn.modules.loss import _Loss
 from sklearn.model_selection import train_test_split
+from scipy.io import loadmat
 
 mnist_path = "./data/MNIST"
 mnist_img_path = "./data/MNIST_imgs"
@@ -18,6 +19,13 @@ cifar_path = "./data/CIFAR"
 cifar_img_path = "./data/CIFAR_imgs"
 os.makedirs(mnist_path, exist_ok=True)
 os.makedirs(mnist_img_path, exist_ok=True)
+
+def crop(x):
+        crop_size = 108
+        
+        offset_height = (218 - crop_size) // 2
+        offset_width = (178 - crop_size) // 2
+        return x[:, offset_height:offset_height + crop_size, offset_width:offset_width + crop_size]
 
 class ImageFolder(data.Dataset):
     def __init__(self, args, file_path, mode):
@@ -37,6 +45,8 @@ class ImageFolder(data.Dataset):
         name_list, label_list = [], []
         f = open(file_path, "r")
         for line in f.readlines():
+            if len(line) == 1:
+                break
             img_name, iden = line.strip().split(' ')
             name_list.append(img_name)
             label_list.append(int(iden))
@@ -47,25 +57,19 @@ class ImageFolder(data.Dataset):
     def load_img(self):
         img_list = []
         for i, img_name in enumerate(self.name_list):
-            if img_name.endswith(".png"):
+            if img_name.endswith(".jpg"):
+                print(i, end='\r')
                 path = self.img_path + "/" + img_name
                 img = PIL.Image.open(path)
                 img = img.convert('RGB')
                 img_list.append(img)
         return img_list
-    
+
     def get_processor(self):
         if self.model_name == "FaceNet":
             re_size = 112
         else:
             re_size = 64
-            
-        crop_size = 108
-        
-        offset_height = (218 - crop_size) // 2
-        offset_width = (178 - crop_size) // 2
-        crop = lambda x: x[:, offset_height:offset_height + crop_size, offset_width:offset_width + crop_size]
-
         proc = []
         proc.append(transforms.ToTensor())
         proc.append(transforms.Lambda(crop))
@@ -87,6 +91,49 @@ class ImageFolder(data.Dataset):
 
     def __len__(self):
         return self.num_img
+
+class GazeFolder(data.Dataset):
+
+    def __init__(self, path, identities):
+        self.path = path
+        self.identities = identities
+        self.img_list = self.load_img()
+        self.processor = transforms.ToTensor()
+    
+    def get_processor(self):
+        proc = []
+        proc.append(transforms.ToPILImage())
+        proc.append(transforms.Resize((64, 64)))
+        proc.append(transforms.ToTensor())
+            
+        return transforms.Compose(proc)
+
+    def load_img(self):
+        id_dirs = os.listdir(self.path)
+        img_list = []
+        for dir in id_dirs:
+            if int(dir[1:]) in self.identities:
+                person_Dir = os.path.join(self.path, dir)
+                for day in os.listdir(person_Dir):
+                    # print(os.path.join(person_Dir, day))
+                    mat_file = loadmat(os.path.join(person_Dir, day))
+                    right_eye_images = mat_file['data'][0,0][0][0,0][1]
+                    for img in right_eye_images:
+                        img_list.append(img)
+                    left_eye_images = mat_file['data'][0,0][1][0,0][1]
+                    for img in left_eye_images:
+                        img_list.append(img)
+        return img_list
+    def __getitem__(self, index):
+        processor = self.get_processor()
+        one_hot = np.zeros(1000)
+        one_hot[1] = 1
+        img = processor(self.img_list[index])
+        return img.repeat(3,1,1)
+    
+    def __len__(self):
+        return len(self.img_list)
+
 
 class GrayFolder(data.Dataset):
     def __init__(self, args, file_path, mode):
