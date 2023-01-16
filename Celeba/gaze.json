@@ -1,0 +1,16 @@
+{
+    "dataset":{
+      "name":"gaze",
+      "model_name":"VGG16",
+      "gpus":"1",
+      "train_percentage":0.8,
+      "img_path":"../MPIIGaze/Data/Normalized"
+    },
+    "VGG16":{
+      "epochs":10,
+      "batch_size":64,
+      "lr":2e-4,
+      "save_path":"../gazeCalssifier"
+    }
+  }
+  

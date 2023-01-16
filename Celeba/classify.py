@@ -15,9 +15,9 @@ class Flatten(nn.Module):
 class VGG16(nn.Module):
     def __init__(self, n_classes):
         super(VGG16, self).__init__()
-        8 
+        model = torchvision.models.vgg16_bn(weights=torchvision.models.vgg.VGG16_BN_Weights.DEFAULT)
         self.feature = model.features
-        self.feat_dim = 512 * 2 * 2
+        self.feat_dim = 512
         self.n_classes = n_classes
         self.bn = nn.BatchNorm1d(self.feat_dim)
         self.bn.bias.requires_grad_(False)  # no shift
@@ -29,7 +29,7 @@ class VGG16(nn.Module):
         feature = self.bn(feature)
         res = self.fc_layer(feature)
         
-        return [feature, res]
+        return [feature, res] #why?
 
     def predict(self, x):
         feature = self.feature(x)
