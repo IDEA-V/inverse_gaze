@@ -1,6 +1,6 @@
 import os, utils, torchvision
 import json, PIL, time, random
-import torch, math, cv2
+import torch, math
 
 import numpy as np
 import pandas as pd

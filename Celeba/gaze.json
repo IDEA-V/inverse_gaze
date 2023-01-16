@@ -3,14 +3,15 @@
       "name":"gaze",
       "model_name":"VGG16",
       "gpus":"1",
-      "train_percentage":0.8,
-      "img_path":"../MPIIGaze/Data/Normalized"
+      "train_percentage":0.9,
+      "img_path":"./MPIIGaze/Data/Normalized",
+      "individuals": ["p00","p02","p03","p06","p08","p09","p10","p11","p12","p14"]
     },
     "VGG16":{
       "epochs":10,
-      "batch_size":64,
+      "batch_size":128,
       "lr":2e-4,
-      "save_path":"../gazeCalssifier"
+      "save_path":"results/gazeCalssifier"
     }
   }
   

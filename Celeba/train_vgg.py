@@ -12,14 +12,14 @@ from torchsummary import summary
 
 if __name__ == "__main__":
     dataset_name = "gaze"
-    file = "./" + dataset_name + ".json"
+    file = "./Celeba/" + dataset_name + ".json"
     args = utils.load_params(json_file=file)
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     batch_size = args["VGG16"]["batch_size"]
 
-    gaze_dataset = load_gaze.GazeNormalizedDataset(args["dataset"]["img_path"])
+    gaze_dataset = load_gaze.GazeNormalizedDataset(args["dataset"]["img_path"],args["dataset"]["individuals"])
     print(f'Loaded {len(gaze_dataset)} images of {dataset_name}')
 
     train_size = int(args["dataset"]["train_percentage"] * len(gaze_dataset))

@@ -17,14 +17,14 @@ def imshow(img):
 
 class GazeNormalizedDataset(Dataset):
 
-    def __init__(self, dataSetPath:str,excludedPersons: List[str]=None):
+    def __init__(self, dataSetPath:str,individuals: List[str]=None):
         self.gazePath = dataSetPath+'/'
         self.personList = glob.glob(self.gazePath + "*")
         self.data:list[Tuple[torch.tensor,str]] = []
         class_number = 0
         for personPath in self.personList:
             person_name = personPath.split("/")[-1]
-            if excludedPersons!=None and person_name not in excludedPersons:
+            if individuals!=None and person_name not in individuals:
                 continue
             person_number = class_number
             class_number+=1
