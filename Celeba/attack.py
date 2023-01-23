@@ -97,20 +97,22 @@ def inversion(G, D, T, E, iden, lr=2e-2, momentum=0.9, lamda=100, iter_times=150
 	
 
 if __name__ == '__main__':
-	target_path = "target_model_path"
-	g_path = "generator_path"
-	d_path = "discriminator_path"
-	e_path = "evaluate_model_path"
+	target_path = "./result/models_celeba_gan/gazeCalssifier.zip"
+	g_path = "./result/models_celeba_gan/celeba_G.tar"
+	d_path = "./result/models_celeba_gan/celeba_D.tar"
+	e_path = "./result/models_celeba_gan/gazeCalssifier.zip"
 	
-	T = classify.VGG16()
+	# T = classify.VGG16(10)
+	# T = nn.DataParallel(T).cuda()
+	# ckp_T = torch.load(target_path)['state_dict']
+	# utils.load_my_state_dict(T, ckp_T)
+	T = torch.load(target_path)
 	T = nn.DataParallel(T).cuda()
-	ckp_T = torch.load(target_path)['state_dict']
-	utils.load_my_state_dict(T, ckp_T)
 
 	E = classify.FaceNet(num_classes)
 	E = nn.DataParallel(E).cuda()
-	ckp_E = torch.load(e_path)['state_dict']
-	utils.load_my_state_dict(E, ckp_E)
+	# ckp_E = torch.load(e_path)['state_dict']
+	# utils.load_my_state_dict(E, ckp_E)
 
 	G = generator.Generator()
 	G = nn.DataParallel(G).cuda()
@@ -125,4 +127,4 @@ if __name__ == '__main__':
 	iden = torch.zeros(100)
 	for i in range(100):
 		iden[i] = i
-	inversion(G, D, T, E, iden, verbose=True)
+	inversion(G, D, T, E, iden)
