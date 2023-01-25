@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     for epoch in range(epochs):
         start = time.time()
-        for i, imgs in enumerate(dataloader):
+        for i, imgs, one_hot in enumerate(dataloader):
             print(i, end='\r')
             step += 1
             # imgs = torch.Tensor(imgs)
@@ -94,6 +94,8 @@ if __name__ == "__main__":
             r_logit = DG(imgs)
             f_logit = DG(f_imgs)
             
+
+
             wd = r_logit.mean() - f_logit.mean()  # Wasserstein-1 Distance
             gp = gradient_penalty(imgs.data, f_imgs.data)
             dg_loss = - wd + gp * 10.0

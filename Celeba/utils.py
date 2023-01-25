@@ -47,6 +47,15 @@ def weights_init(m):
         if m.bias is not None:
             init.constant_(m.bias, 0.0)
 
+def init_gaze_data(path, identities, batch_size=64, mode="gan"):
+    data_set = dataloader.GazeFolder(path, identities, mode)
+    data_loader = torch.utils.data.DataLoader(data_set,
+                                batch_size=batch_size,
+                                shuffle=False,
+                                num_workers=4,
+                                pin_memory=True)
+    return data_set, data_loader
+
 def init_dataloader(args, file_path, batch_size=64, mode="gan"):
     tf = time.time()
 
@@ -58,7 +67,7 @@ def init_dataloader(args, file_path, batch_size=64, mode="gan"):
     if args['dataset']['name'] == "celeba":
         data_set = dataloader.ImageFolder(args, file_path, mode)
     elif args['dataset']['name'] == "gaze":
-        data_set = dataloader.GazeFolder('./data/Normalized', [0,1,2,3,4])
+        data_set = dataloader.GazeFolder('./data/Normalized', [1,4,5,7,13])
     else:
         data_set = dataloader.GrayFolder(args, file_path, mode) 
         

@@ -2,13 +2,12 @@ import torch, os, time, random, generator, discri, classify, utils
 import numpy as np 
 import torch.nn as nn
 import torchvision.utils as tvls
-
 device = "cuda"
 num_classes = 1000
 log_path = "../attack_logs"
 os.makedirs(log_path, exist_ok=True)
 
-def inversion(G, D, T, E, iden, lr=2e-2, momentum=0.9, lamda=100, iter_times=1500, clip_range=1):
+def inversion(G, D, T, E, iden, lr=2e-2, momentum=0.9, lamda=100, iter_times=15000, clip_range=1):
 	iden = iden.view(-1).long().cuda()
 	criterion = nn.CrossEntropyLoss().cuda()
 	bs = iden.shape[0]
@@ -47,6 +46,8 @@ def inversion(G, D, T, E, iden, lr=2e-2, momentum=0.9, lamda=100, iter_times=150
 			Iden_Loss = criterion(out, iden)
 			Total_Loss = Prior_Loss + lamda * Iden_Loss
 
+			print(f"Loss: {Total_Loss.item()}", end='\r')
+
 			Total_Loss.backward()
 			
 			v_prev = v.clone()
@@ -61,7 +62,7 @@ def inversion(G, D, T, E, iden, lr=2e-2, momentum=0.9, lamda=100, iter_times=150
 
 			if (i+1) % 300 == 0:
 				fake_img = G(z.detach())
-				eval_prob = E(utils.low2high(fake_img))[-1]
+				eval_prob = E(fake_img)[-1]
 				eval_iden = torch.argmax(eval_prob, dim=1).view(-1)
 				acc = iden.eq(eval_iden.long()).sum().item() * 1.0 / bs
 				print("Iteration:{}\tPrior Loss:{:.2f}\tIden Loss:{:.2f}\tAttack Acc:{:.2f}".format(i+1, Prior_Loss_val, Iden_Loss_val, acc))
@@ -97,7 +98,7 @@ def inversion(G, D, T, E, iden, lr=2e-2, momentum=0.9, lamda=100, iter_times=150
 	
 
 if __name__ == '__main__':
-	target_path = "./result/models_celeba_gan/gazeCalssifier.zip"
+	target_path = "./result/gazeCalssifier.zip"
 	g_path = "./result/models_celeba_gan/celeba_G.tar"
 	d_path = "./result/models_celeba_gan/celeba_D.tar"
 	e_path = "./result/models_celeba_gan/gazeCalssifier.zip"
@@ -109,10 +110,8 @@ if __name__ == '__main__':
 	T = torch.load(target_path)
 	T = nn.DataParallel(T).cuda()
 
-	E = classify.FaceNet(num_classes)
+	E = torch.load(target_path)
 	E = nn.DataParallel(E).cuda()
-	# ckp_E = torch.load(e_path)['state_dict']
-	# utils.load_my_state_dict(E, ckp_E)
 
 	G = generator.Generator()
 	G = nn.DataParallel(G).cuda()
@@ -124,7 +123,7 @@ if __name__ == '__main__':
 	ckp_D = torch.load(d_path)['state_dict']
 	utils.load_my_state_dict(D, ckp_D)
 
-	iden = torch.zeros(100)
-	for i in range(100):
+	iden = torch.zeros(10)
+	for i in range(10):
 		iden[i] = i
 	inversion(G, D, T, E, iden)

@@ -1,6 +1,6 @@
 import os, utils, torchvision
 import json, PIL, time, random
-import torch, math, cv2
+import torch, math
 
 import numpy as np
 import pandas as pd
@@ -21,11 +21,11 @@ os.makedirs(mnist_path, exist_ok=True)
 os.makedirs(mnist_img_path, exist_ok=True)
 
 def crop(x):
-        crop_size = 108
-        
-        offset_height = (218 - crop_size) // 2
-        offset_width = (178 - crop_size) // 2
-        return x[:, offset_height:offset_height + crop_size, offset_width:offset_width + crop_size]
+    crop_size = 108
+    
+    offset_height = (218 - crop_size) // 2
+    offset_width = (178 - crop_size) // 2
+    return x[:, offset_height:offset_height + crop_size, offset_width:offset_width + crop_size]
 
 class ImageFolder(data.Dataset):
     def __init__(self, args, file_path, mode):
@@ -94,12 +94,13 @@ class ImageFolder(data.Dataset):
 
 class GazeFolder(data.Dataset):
 
-    def __init__(self, path, identities):
+    def __init__(self, path, identities, mode):
         self.path = path
+        self.mode = mode
         self.identities = identities
-        self.img_list = self.load_img()
+        self.img_list, self.labels, self.files = self.load_img()
         self.processor = transforms.ToTensor()
-    
+
     def get_processor(self):
         proc = []
         proc.append(transforms.ToPILImage())
@@ -111,6 +112,8 @@ class GazeFolder(data.Dataset):
     def load_img(self):
         id_dirs = os.listdir(self.path)
         img_list = []
+        label_list = []
+        file_list = []
         for dir in id_dirs:
             if int(dir[1:]) in self.identities:
                 person_Dir = os.path.join(self.path, dir)
@@ -118,18 +121,22 @@ class GazeFolder(data.Dataset):
                     # print(os.path.join(person_Dir, day))
                     mat_file = loadmat(os.path.join(person_Dir, day))
                     right_eye_images = mat_file['data'][0,0][0][0,0][1]
-                    for img in right_eye_images:
+                    for i, img in enumerate(right_eye_images):
                         img_list.append(img)
+                        label_list.append(self.identities.index(int(dir[1:])))
+                        file_list.append(os.path.join(person_Dir, day) + f" {i} right")
                     left_eye_images = mat_file['data'][0,0][1][0,0][1]
-                    for img in left_eye_images:
+                    for i, img in enumerate(left_eye_images):
                         img_list.append(img)
-        return img_list
+                        label_list.append(self.identities.index(int(dir[1:])))
+                        file_list.append(os.path.join(person_Dir, day) + f" {i} left")
+
+        return img_list, label_list, file_list
+    
     def __getitem__(self, index):
         processor = self.get_processor()
-        one_hot = np.zeros(1000)
-        one_hot[1] = 1
         img = processor(self.img_list[index])
-        return img.repeat(3,1,1)
+        return (img.repeat(3,1,1), self.labels[index], self.files[index])
     
     def __len__(self):
         return len(self.img_list)
