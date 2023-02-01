@@ -13,6 +13,39 @@ import torchvision.transforms as transforms
 from discri import DGWGAN
 from generator import Generator
 
+import torchvision.utils
+from gaze_estimation import (GazeEstimationMethod, create_dataloader,
+                             create_logger, create_loss, create_model,
+                             create_optimizer, create_scheduler,
+                             create_tensorboard_writer)
+from gaze_estimation.utils import (AverageMeter, compute_angle_error,
+                                   create_train_output_dir, load_config,
+                                   save_config, set_seeds, setup_cudnn)
+from gaze_estimation.config import get_default_config 
+from gaze_estimation.datasets import create_dataset
+from torch.utils.data import DataLoader
+
+config = get_default_config()
+config.merge_from_file('configs/mpiifacegaze/alexnet_train.yaml')
+config.freeze()
+train_dataset, val_dataset = create_dataset(config, True, [1,4,5,7,13])
+train_loader = DataLoader(
+    train_dataset,
+    batch_size=config.train.batch_size,
+    shuffle=True,
+    num_workers=config.train.train_dataloader.num_workers,
+    pin_memory=config.train.train_dataloader.pin_memory,
+    drop_last=config.train.train_dataloader.drop_last,
+)
+val_loader = DataLoader(
+    val_dataset,
+    batch_size=config.train.batch_size,
+    shuffle=False,
+    num_workers=config.train.val_dataloader.num_workers,
+    pin_memory=config.train.val_dataloader.pin_memory,
+    drop_last=False,
+)
+
 def freeze(net):
     for p in net.parameters():
         p.requires_grad_(False) 
@@ -63,10 +96,10 @@ if __name__ == "__main__":
     print("---------------------Training [%s]------------------------------" % model_name)
     utils.print_params(args["dataset"], args[model_name])
 
-    dataset, dataloader = init_dataloader(args, file_path, batch_size, mode="gan")
+    dataset, dataloader = init_gaze_data('./data/Normalized', [1,4,5,7,13])
 
-    G = Generator(z_dim)
-    DG = DGWGAN(3)
+    G = Generator(z_dim, 448)
+    DG = DGWGAN(3, 448)
     
     G = torch.nn.DataParallel(G).cuda()
     DG = torch.nn.DataParallel(DG).cuda()
@@ -78,11 +111,11 @@ if __name__ == "__main__":
 
     for epoch in range(epochs):
         start = time.time()
-        for i, (imgs, one_hot, files) in enumerate(dataloader):
-            print(f'{i}/{len(dataloader)}', end='\r')
+        for i, (images,labels,files) in enumerate(train_loader):
+            print(f'{i}/{len(train_loader)}', end='\r')
             step += 1
-            # imgs = torch.Tensor(imgs)
-            imgs = imgs.cuda()
+            # imgs = images.cuda()
+            imgs = images.cuda()
             bs = imgs.size(0)
             
             freeze(G)
@@ -125,8 +158,8 @@ if __name__ == "__main__":
         if (epoch+1) % 1 == 0:
             z = torch.randn(32, z_dim).cuda()
             fake_image = G(z)
-            save_tensor_images(fake_image.detach(), os.path.join(save_img_dir, "result_image_{}.png".format(epoch)), nrow = 8)
+            save_tensor_images(fake_image.detach(), os.path.join(save_img_dir, "result_image1_{}.png".format(epoch)), nrow = 8)
         
-        torch.save({'state_dict':G.state_dict()}, os.path.join(save_model_dir, "celeba_G.tar"))
-        torch.save({'state_dict':DG.state_dict()}, os.path.join(save_model_dir, "celeba_D.tar"))
+        torch.save({'state_dict':G.state_dict()}, os.path.join(save_model_dir, "celeba_G1.tar"))
+        torch.save({'state_dict':DG.state_dict()}, os.path.join(save_model_dir, "celeba_D1.tar"))
 

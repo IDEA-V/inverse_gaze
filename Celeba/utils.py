@@ -48,10 +48,10 @@ def weights_init(m):
             init.constant_(m.bias, 0.0)
 
 def init_gaze_data(path, identities, batch_size=64, mode="gan"):
-    data_set = dataloader.GazeFolder(path, identities, mode)
+    data_set = dataloader.GazeFolder(path, identities)
     data_loader = torch.utils.data.DataLoader(data_set,
                                 batch_size=batch_size,
-                                shuffle=False,
+                                shuffle=True,
                                 num_workers=4,
                                 pin_memory=True)
     return data_set, data_loader
