@@ -4,4 +4,7 @@ attack_logs/
 result/
 *.pdf
 .vscode/
+Celeba/a.ipynb
+Celeba/a.txt
 MPIIGaze/
+*.png

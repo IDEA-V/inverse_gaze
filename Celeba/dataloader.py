@@ -94,9 +94,8 @@ class ImageFolder(data.Dataset):
 
 class GazeFolder(data.Dataset):
 
-    def __init__(self, path, identities, mode):
+    def __init__(self, path, identities):
         self.path = path
-        self.mode = mode
         self.identities = identities
         self.img_list, self.labels, self.files = self.load_img()
         self.processor = transforms.ToTensor()
