@@ -56,6 +56,15 @@ def init_gaze_data(path, identities, batch_size=64, mode="gan"):
                                 pin_memory=True)
     return data_set, data_loader
 
+def init_gaze_face_data(path, identities, batch_size=64, mode="gan"):
+    data_set = dataloader.GazeFaceFolder(path, identities)
+    data_loader = torch.utils.data.DataLoader(data_set,
+                                batch_size=batch_size,
+                                shuffle=True,
+                                num_workers=4,
+                                pin_memory=True)
+    return data_set, data_loader
+
 def init_dataloader(args, file_path, batch_size=64, mode="gan"):
     tf = time.time()
 

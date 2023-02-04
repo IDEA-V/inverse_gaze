@@ -8,7 +8,7 @@
       "individuals": ["p00","p02","p03","p06","p08","p09","p10","p11","p12","p14"]
     },
     "VGG16":{
-      "epochs":10,
+      "epochs":15,
       "batch_size":128,
       "lr":2e-4,
       "save_path":"result/gazeCalssifier"
