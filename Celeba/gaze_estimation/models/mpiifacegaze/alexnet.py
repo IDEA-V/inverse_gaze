@@ -6,6 +6,12 @@ import torch.nn.functional as F
 import torchvision
 import yacs.config
 
+def hook(
+    module: nn.Module, grad_in: Union[Tuple[torch.Tensor, ...],
+                                        torch.Tensor],
+    grad_out: Union[Tuple[torch.Tensor, ...], torch.Tensor]
+) -> Optional[torch.Tensor]:
+    return tuple(grad / 256 for grad in grad_in)
 
 class Model(nn.Module):
     def __init__(self, config: yacs.config.CfgNode):
@@ -24,11 +30,11 @@ class Model(nn.Module):
         self.conv2 = nn.Conv2d(256, 256, kernel_size=1, stride=1, padding=0)
         self.conv3 = nn.Conv2d(256, 1, kernel_size=1, stride=1, padding=0)
 
-        self.fc1 = nn.Linear(256 * 13**2, 4096)
+        self.fc1 = nn.Linear(256, 4096)
         self.fc2 = nn.Linear(4096, 4096)
         self.fc3 = nn.Linear(4096, 2)
 
-        self._register_hook()
+        self.conv3.register_backward_hook(hook)
         self._initialize_weight()
 
     def _initialize_weight(self) -> None:
@@ -44,18 +50,12 @@ class Model(nn.Module):
         nn.init.constant_(self.fc1.bias, val=1)
         nn.init.zeros_(self.fc2.bias)
         nn.init.zeros_(self.fc3.bias)
+    
+    # def _register_hook(self) -> None:
+    #     n_channels = self.conv1.in_channels
 
-    def _register_hook(self) -> None:
-        n_channels = self.conv1.in_channels
 
-        def hook(
-            module: nn.Module, grad_in: Union[Tuple[torch.Tensor, ...],
-                                              torch.Tensor],
-            grad_out: Union[Tuple[torch.Tensor, ...], torch.Tensor]
-        ) -> Optional[torch.Tensor]:
-            return tuple(grad / n_channels for grad in grad_in)
-
-        self.conv3.register_backward_hook(hook)
+    #     self.conv3.register_backward_hook(hook)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.feature_extractor(x)

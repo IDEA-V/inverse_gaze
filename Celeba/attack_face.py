@@ -6,15 +6,27 @@ import torchvision.transforms as transforms
 from gaze_estimation.config import get_default_config
 from gaze_estimation.datasets import create_dataset
 from gaze_estimation.utils import (AverageMeter, compute_angle_error)
-                                   
+import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+
 device = "cuda"
-num_classes = 1000
 log_path = "../attack_logs"
 os.makedirs(log_path, exist_ok=True)
 
-def inversion(G, D, T, E, poses, gazes, lr=2e-2, momentum=0.9, lamda=100, iter_times=15000, clip_range=1):
+def freeze(net):
+    for p in net.parameters():
+        p.requires_grad_(False) 
+
+def unfreeze(net):
+    for p in net.parameters():
+        p.requires_grad_(True)
+
+
+def inversion(G, D, T, E, gazes, ids, ground_truth, lr=2e-2, momentum=0.9, lamda=100, iter_times=15000, clip_range=1):
 	gazes = gazes.cuda()
-	criterion = nn.MSELoss(reduction='mean').cuda()
+	ids = ids.long().cuda()
+	criterion = nn.L1Loss(reduction='mean').cuda()
+	criterion1 = nn.CrossEntropyLoss().cuda()
 	bs = gazes.shape[0]
 	
 	iden = torch.zeros(10)
@@ -31,6 +43,7 @@ def inversion(G, D, T, E, poses, gazes, lr=2e-2, momentum=0.9, lamda=100, iter_t
 	max_iden = torch.zeros(bs)
 	z_hat = torch.zeros(bs, 100)
 	flag = torch.zeros(bs)
+	rz = transforms.Resize((224,224))
 
 	for random_seed in range(5):
 		tf = time.time()
@@ -47,18 +60,24 @@ def inversion(G, D, T, E, poses, gazes, lr=2e-2, momentum=0.9, lamda=100, iter_t
 		for i in range(iter_times):
 			fake = G(z)
 			label = D(fake)
-			fake_in = fake[:,0,:,:].unsqueeze(1)
-			out = T(fake_in, poses)
-			
+			fake_in = rz(fake)
+			out = T(fake_in)
+			out1 =  E(fake)
+
 			if z.grad is not None:
 				z.grad.data.zero_()
 
 			Prior_Loss = - label.mean()
-			Iden_Loss = criterion(nn.functional.normalize(out), nn.functional.normalize(gazes))
-			# Iden_Loss = compute_angle_error(out, gazes).mean()
-			Total_Loss = Prior_Loss +  Iden_Loss
+			# Iden_Loss = criterion(nn.functional.normalize(out), nn.functional.normalize(gazes))
+			Gaze_Loss = criterion(out, gazes)
+			Iden_Loss = criterion1(out1[1], ids)
+			Total_Loss = 0.1*Prior_Loss +  lamda * Gaze_Loss
+			# Total_Loss = Prior_Loss +  lamda*Iden_Loss
 
-			print(f"Loss: {Total_Loss.item():.2f} Prior_Loss: {Prior_Loss.item():.2f} L2_Loss: {compute_angle_error(out, gazes).mean():.2f}", end='\r')
+
+			print(f"Loss: {Total_Loss.item():.2f} Prior_Loss: {Prior_Loss.item():.2f} Angle Error: {compute_angle_error(out, gazes).mean():.2f}", end='\r')
+			# print(f"Loss: {Total_Loss.item():.2f} Prior_Loss: {Prior_Loss.item():.2f} Gaze_Loss: {Gaze_Loss.item():.2f} Iden_Loss: {Iden_Loss.item():2f}", end='\r')
+
 
 			Total_Loss.backward()
 			
@@ -69,19 +88,17 @@ def inversion(G, D, T, E, poses, gazes, lr=2e-2, momentum=0.9, lamda=100, iter_t
 			z = torch.clamp(z.detach(), -clip_range, clip_range).float()
 			z.requires_grad = True
 
-			Prior_Loss_val = Prior_Loss.item()
-			Iden_Loss_val = Iden_Loss.item()
-
-			rz = transforms.Resize((36, 60))
 			if (i+1) % 300 == 0:
 				fake_img = G(z.detach())
-				for i in range(10):
-					img = rz(fake_img[i])
-					tvls.save_image(img, f'img_{i}.png')
-				eval_prob = E(fake_img)[-1]
-				eval_iden = torch.argmax(eval_prob, dim=1).view(-1)
-				acc = iden.eq(eval_iden.long()).sum().item() * 1.0 / bs
-				print("Iteration:{}\tPrior Loss:{:.2f}\tIden Loss:{:.2f}\tAttack Acc:{:.2f}".format(i+1, Prior_Loss_val, Iden_Loss_val, acc))
+				imgs = []
+				for j in range(10):
+					img = fake_img[j]
+					img = torch.concat((img[0].unsqueeze(0).cpu(), ground_truth[j][0].unsqueeze(0)))
+					img = img.unsqueeze(1)
+					imgs.append(img)
+
+				img = torch.concat(imgs)
+				tvls.save_image(img, f'./result/face_gaze/img_{i+1}.png', nrow=2)
 			
 		fake = G(z)
 		score = T(fake)[-1]
@@ -117,17 +134,19 @@ if __name__ == '__main__':
 	target_path = "./result/gazeEstimater.zip"
 	g_path = "./result/models_celeba_gan/celeba_G1.tar"
 	d_path = "./result/models_celeba_gan/celeba_D1.tar"
-	e_path = "./result/gazeClassifier.zip"
+	e_path = "./result/gazeFaceClassifier_full.zip"
 	
-	# T = classify.VGG16(10)
-	# T = nn.DataParallel(T).cuda()
-	# ckp_T = torch.load(target_path)['state_dict']
-	# utils.load_my_state_dict(T, ckp_T)
 	T = torch.load(target_path)
+	freeze(T)
 	T = nn.DataParallel(T).cuda()
 
 	E = torch.load(e_path)
+	freeze(E)
 	E = nn.DataParallel(E).cuda()
+
+	E1 = torch.load(e_path)
+	freeze(E1)
+	E1 = nn.DataParallel(E1).cuda()
 
 	G = generator.Generator()
 	G = nn.DataParallel(G).cuda()
@@ -139,9 +158,24 @@ if __name__ == '__main__':
 	ckp_D = torch.load(d_path)['state_dict']
 	utils.load_my_state_dict(D, ckp_D)
 
-	config = get_default_config()
-	config.merge_from_file('configs/mpiigaze/lenet_train.yaml')
-	config.freeze()
-	poses, gazes = create_dataset(config, False, [0,2,3,6,8,9,10,11,12,14])
 
-	inversion(G, D, T, E, poses, gazes)
+	config = get_default_config()
+	config.merge_from_file('configs/mpiifacegaze/resnet_simple_14_train.yaml')
+	config.freeze()
+	train_dataset, val_dataset = create_dataset(config, False, [0,2,3,6,8,9,10,11,12,14])
+
+	images = []
+	gazes = []
+	ids = []
+	for d in train_dataset:
+		images.append(d[0])
+		gazes.append(d[2])
+		ids.append(d[3])
+
+	images = torch.cat([image.unsqueeze(0) for image in images])
+	gazes = torch.cat([gaze.unsqueeze(0) for gaze in gazes])
+	ids = torch.from_numpy(np.array(ids))
+
+	tvls.save_image(images, f'img_gt.png')
+	
+	inversion(G, D, T, E, gazes, ids, images)

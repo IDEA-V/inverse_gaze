@@ -12,6 +12,8 @@ from torch.utils.data import DataLoader
 from torch.nn.modules.loss import _Loss
 from sklearn.model_selection import train_test_split
 from scipy.io import loadmat
+import h5py
+import cv2
 
 mnist_path = "./data/MNIST"
 mnist_img_path = "./data/MNIST_imgs"
@@ -58,7 +60,7 @@ class ImageFolder(data.Dataset):
         img_list = []
         for i, img_name in enumerate(self.name_list):
             if img_name.endswith(".jpg"):
-                print(i, end='\r')
+                print(f"Loading... {i}/{len(self.name_list)}", end='\r')
                 path = self.img_path + "/" + img_name
                 img = PIL.Image.open(path)
                 img = img.convert('RGB')
@@ -140,6 +142,47 @@ class GazeFolder(data.Dataset):
     def __len__(self):
         return len(self.img_list)
 
+class GazeFaceFolder(data.Dataset):
+
+    def __init__(self, path, identities):
+        self.path = path
+        self.identities = identities
+        self.img_list, self.labels, self.files = self.load_img()
+        self.processor = transforms.ToTensor()
+
+    def get_processor(self):
+        proc = []
+        proc.append(transforms.ToPILImage())
+        proc.append(transforms.Resize((64, 64)))
+        proc.append(transforms.ToTensor())
+            
+        return transforms.Compose(proc)
+
+    def load_img(self):
+        files = [ name for name in os.listdir(self.path) if name.endswith('.mat')]
+        img_list = []
+        label_list = []
+        file_list = []
+        for file in files:
+            filePath = os.path.join(self.path, file)
+            if (int(file[1:3]) in self.identities):
+                with h5py.File(filePath) as mat_file:
+                    for i in range(1000):
+                        img = mat_file['Data']['data'][i]
+                        img = cv2.resize(img, (64, 64))
+                        img_list.append(img)
+                        label_list.append(0)
+                        file_list.append('')
+
+        return img_list, label_list, file_list
+    
+    def __getitem__(self, index):
+        processor = self.get_processor()
+        img = processor(self.img_list[index])
+        return (img, self.labels[index], self.files[index])
+    
+    def __len__(self):
+        return len(self.img_list)
 
 class GrayFolder(data.Dataset):
     def __init__(self, args, file_path, mode):

@@ -7,6 +7,12 @@ import yacs.config
 
 from .backbones import create_backbone
 
+def hook(
+    module: nn.Module, grad_in: Union[Tuple[torch.Tensor, ...],
+                                        torch.Tensor],
+    grad_out: Union[Tuple[torch.Tensor, ...], torch.Tensor]
+) -> Optional[torch.Tensor]:
+    return tuple(grad / 256 if grad != None else grad  for grad in grad_in)
 
 class Model(nn.Module):
     def __init__(self, config: yacs.config.CfgNode):
@@ -22,7 +28,7 @@ class Model(nn.Module):
         # This model assumes the input image size is 224x224.
         self.fc = nn.Linear(n_channels * 14**2, 2)
 
-        self._register_hook()
+        self.conv.register_backward_hook(hook)
         self._initialize_weight()
 
     def _initialize_weight(self) -> None:

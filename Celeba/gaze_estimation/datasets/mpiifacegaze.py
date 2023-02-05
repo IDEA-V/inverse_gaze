@@ -8,10 +8,12 @@ from torch.utils.data import Dataset
 
 class OnePersonDataset(Dataset):
     def __init__(self, person_id_str: str, dataset_path: pathlib.Path,
-                 transform: Callable):
+                 transform: Callable, face:bool = False, len:int=3000):
         self.person_id_str = person_id_str
         self.dataset_path = dataset_path
         self.transform = transform
+        self.face = face
+        self.len = len
 
     def __getitem__(
             self,
@@ -23,7 +25,10 @@ class OnePersonDataset(Dataset):
         image = self.transform(image)
         pose = torch.from_numpy(pose)
         gaze = torch.from_numpy(gaze)
-        return image, pose, gaze
+        if self.face:
+            return image, pose, gaze, int(self.person_id_str[1:])
+        else:
+            return image, pose, gaze
 
     def __len__(self) -> int:
-        return 3000
+        return self.len

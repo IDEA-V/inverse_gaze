@@ -3,12 +3,15 @@ import numpy as np
 import torch.nn as nn
 import torchvision.utils as tvls
 import torchvision.transforms as transforms
+from scipy.io import loadmat
+import random
+
 device = "cuda"
 num_classes = 1000
 log_path = "../attack_logs"
 os.makedirs(log_path, exist_ok=True)
 
-def inversion(G, D, T, E, iden, lr=2e-2, momentum=0.9, lamda=100, iter_times=15000, clip_range=1):
+def inversion(G, D, T, E, iden, ground_truth, lr=2e-2, momentum=0.9, lamda=100, iter_times=15000, clip_range=1):
 	iden = iden.view(-1).long().cuda()
 	criterion = nn.CrossEntropyLoss().cuda()
 	bs = iden.shape[0]
@@ -47,7 +50,7 @@ def inversion(G, D, T, E, iden, lr=2e-2, momentum=0.9, lamda=100, iter_times=150
 			Iden_Loss = criterion(out, iden)
 			Total_Loss = Prior_Loss + lamda * Iden_Loss
 
-			print(f"Loss: {Total_Loss.item():.2f} Prior_Loss: {Prior_Loss.item():.2f} Iden_Loss: {Iden_Loss.item():.2f}", end='\r')
+			print("Loss:{:.2f}\t Prior_Loss:{:.2f}\t Iden_Loss:{:.2f}".format(Total_Loss.item(), Prior_Loss.item(), Iden_Loss.item()), end='\r')
 
 			Total_Loss.backward()
 			
@@ -64,9 +67,16 @@ def inversion(G, D, T, E, iden, lr=2e-2, momentum=0.9, lamda=100, iter_times=150
 			rz = transforms.Resize((36, 60))
 			if (i+1) % 300 == 0:
 				fake_img = G(z.detach())
-				for i in range(10):
-					img = rz(fake_img[i])
-					tvls.save_image(img, f'img_{i}.png')
+				imgs = []
+				for j in range(10):
+					img = rz(fake_img[j])
+					img = torch.concat((img[0].unsqueeze(0).cpu(), ground_truth[j]))
+					img = img.unsqueeze(1)
+					imgs.append(img)
+
+				img = torch.concat(imgs)
+				tvls.save_image(img, f'./result/eye_cls/img_{i+1}.png', nrow=2)
+
 				eval_prob = E(fake_img)[-1]
 				eval_iden = torch.argmax(eval_prob, dim=1).view(-1)
 				acc = iden.eq(eval_iden.long()).sum().item() * 1.0 / bs
@@ -103,7 +113,7 @@ def inversion(G, D, T, E, iden, lr=2e-2, momentum=0.9, lamda=100, iter_times=150
 	
 
 if __name__ == '__main__':
-	target_path = "./result/gazeCalssifier.zip"
+	target_path = "./result/gazeClassifier.zip"
 	g_path = "./result/models_celeba_gan/celeba_G.tar"
 	d_path = "./result/models_celeba_gan/celeba_D.tar"
 	e_path = "./result/models_celeba_gan/gazeCalssifier.zip"
@@ -128,7 +138,22 @@ if __name__ == '__main__':
 	ckp_D = torch.load(d_path)['state_dict']
 	utils.load_my_state_dict(D, ckp_D)
 
-	iden = torch.zeros(10)
-	for i in range(10):
-		iden[i] = i
-	inversion(G, D, T, E, iden)
+	iden = torch.zeros(50)
+	for i in range(50):
+		iden[i] = random.randint(0, 9)
+	
+	proc = []
+	proc.append(transforms.ToPILImage())
+	proc.append(transforms.ToTensor())	
+	proc = transforms.Compose(proc)
+
+	id_dirs = os.listdir('./data/Normalized')
+	img_list = []
+	for dir in id_dirs:
+		if int(dir[1:]) in [0,2,3,6,8,9,10,11,12,14]:
+			person_Dir = os.path.join('./data/Normalized', dir)
+			mat_file = loadmat(os.path.join(person_Dir, 'day01'))
+			right_eye_images = mat_file['data'][0,0][0][0,0][1]
+			img_list.append(proc(right_eye_images[0]))
+	
+	inversion(G, D, T, E, iden, img_list)
