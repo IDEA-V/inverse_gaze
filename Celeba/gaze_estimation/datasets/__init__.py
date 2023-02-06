@@ -10,7 +10,7 @@ from ..types import GazeEstimationMethod
 
 
 def create_dataset(config: yacs.config.CfgNode,
-                   is_train: bool = True, public:List = list(range(15)), face:bool = False) -> Union[List[Dataset], Dataset]:
+                   is_train: bool = True, public:List = list(range(15)), face:bool = False, auxiliary: bool = False) -> Union[List[Dataset], Dataset]:
     if config.mode == GazeEstimationMethod.MPIIGaze.name:
         from .mpiigaze import OnePersonDataset
     elif config.mode == GazeEstimationMethod.MPIIFaceGaze.name:
@@ -30,14 +30,14 @@ def create_dataset(config: yacs.config.CfgNode,
     if is_train:
         if config.train.test_id == -1:
             train_dataset = torch.utils.data.ConcatDataset([
-                OnePersonDataset(person_id, dataset_dir, transform, face)
+                OnePersonDataset(person_id, dataset_dir, transform, face, auxiliary)
                 for person_id in person_ids
             ])
             # assert len(train_dataset) == 45000
         else:
             test_person_id = person_ids[config.train.test_id]
             train_dataset = torch.utils.data.ConcatDataset([
-                OnePersonDataset(person_id, dataset_dir, transform, face)
+                OnePersonDataset(person_id, dataset_dir, transform, face, auxiliary)
                 for person_id in person_ids if person_id != test_person_id
             ])
             # assert len(train_dataset) == 42000
@@ -49,15 +49,10 @@ def create_dataset(config: yacs.config.CfgNode,
         lengths = [train_num, val_num]
         return torch.utils.data.dataset.random_split(train_dataset, lengths)
     else:
-        images = []
-        poses = []
-        gazes = []
-        ids = []
-
         train_dataset = torch.utils.data.ConcatDataset([
-            OnePersonDataset(person_id, dataset_dir, transform, True, 1)
+            OnePersonDataset(person_id, dataset_dir, transform, face, auxiliary, 1)
         for person_id in person_ids])
-
+        OnePersonDataset('p01', dataset_dir, transform, face, auxiliary, 1)
         return torch.utils.data.dataset.random_split(train_dataset, [len(person_ids), 0])
 
         for p in person_ids:

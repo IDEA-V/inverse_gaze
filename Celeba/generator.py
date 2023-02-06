@@ -157,7 +157,7 @@ class ContextNetwork(nn.Module):
     def __init__(self):
         super(ContextNetwork, self).__init__()
         # input_shape: (None, 4, img_h, img_w)
-        self.conv1 = nn.Conv2d(4, 32, kernel_size=5, stride=1, padding=2)
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=5, stride=1, padding=2)
         self.bn1 = nn.BatchNorm2d(32)
         self.act1 = nn.ReLU()
         # input_shape: (None, 32, img_h, img_w)
