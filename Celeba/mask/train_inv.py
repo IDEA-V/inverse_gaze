@@ -257,7 +257,7 @@ if __name__ == "__main__":
             fake_crop = crop(output1, hole_area)
             
             logit_dl = DL(fake_crop)
-            logit_dg = DG(output1)
+            logit_dg = DG(t5r)
             # calculate g_loss
             gan_loss = (- logit_dl.mean() - logit_dg.mean()) / 2
             re_loss = completion_network_loss(x, output1, mask)

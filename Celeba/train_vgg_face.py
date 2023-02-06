@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 config = get_default_config()
 config.merge_from_file('configs/mpiifacegaze/resnet_simple_14_train.yaml')
 config.freeze()
-train_dataset, val_dataset = create_dataset(config, True, range(15), True)
+train_dataset, val_dataset = create_dataset(config, True, [0,2,3,6,8,9,10,11,12,14], True)
 train_loader = DataLoader(
     train_dataset,
     batch_size=config.train.batch_size,
