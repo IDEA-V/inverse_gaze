@@ -165,9 +165,27 @@ if __name__ == "__main__":
         interval = end - start
         print("Epoch:%d \t Time:%.2f" % (epoch, interval))
         if (epoch+1) % 1 == 0:
-            z = torch.randn(32, z_dim).cuda()
-            fake_image = Net((blurred, z))
-            save_tensor_images(fake_image.detach(), os.path.join(save_img_dir, "result_image1_{}.png".format(epoch)), nrow = 8)
+            #z = torch.randn(bs, z_dim).cuda()
+            #fake_image = Net((blurred, z))
+            #save_tensor_images(fake_image.detach(), os.path.join(save_img_dir, "result_auxiliary_{}.png".format(epoch)), nrow = 8)
+            save_size = 8
+            z = torch.randn(save_size, z_dim).cuda()
+            index = torch.randint(0,train_dataset.__len__()-1,(save_size,))
+            actual = torch.zeros(save_size,3,64,64)
+            blurred_img = torch.zeros(save_size,3,64,64)
+            images = torch.zeros(save_size*3,3,64,64)
+            i=0
+            for x in index:
+                img,blur_img,tmp,tmp2 = train_dataset.__getitem__(x)
+                actual[i] = img
+                blurred_img[i] = blur_img
+                i+=1
+            fake_images = Net((blurred_img,z))
+            for j in range(save_size):
+                images[j] = actual[j]
+                images[1*save_size+j] = blurred_img[j]
+                images[2*save_size+j] = fake_images[j]
+            save_tensor_images(images.detach(), os.path.join(save_img_dir, "result_auxiliary_{}.png".format(epoch)), nrow = save_size)
         
         torch.save({'state_dict':Net.state_dict()}, os.path.join(save_model_dir, "celeba_G_auxiliary.tar"))
         torch.save({'state_dict':DG.state_dict()}, os.path.join(save_model_dir, "celeba_D_auxiliary.tar"))
